@@ -13,17 +13,23 @@
           <span class="brand-mark" aria-hidden="true">TCG</span>
           <span class="brand-name">TCG Store</span>
         </a>
-        <button class="account-toggle" id="accountToggle" type="button" aria-controls="accountPanel" aria-expanded="false">
-          Account
-        </button>
+        <div class="header-actions">
+          <button class="basket-toggle" id="basketToggle" type="button" aria-controls="basketPanel" aria-expanded="false">
+            Basket
+            <span class="basket-count" id="basketCount" aria-label="0 items in basket">0</span>
+          </button>
+          <button class="account-toggle" id="accountToggle" type="button" aria-controls="accountPanel" aria-expanded="false">
+            Account
+          </button>
+        </div>
       </header>
 
       <main>
         <section class="storefront" aria-labelledby="storeHeading">
           <div class="store-copy">
             <p class="eyebrow">Online TCG Store</p>
-            <h1 id="storeHeading">Featured Products</h1>
-            <p>Simple storefront placeholder ready for your name, logo, and final product range.</p>
+            <h1 id="storeHeading">Active Restocks</h1>
+            <p>Current standard-sale restock waves pulled from the live catalogue.</p>
           </div>
 
           <div class="product-grid" id="productGrid" aria-live="polite"></div>
@@ -33,52 +39,75 @@
 
     <div class="panel-overlay" id="panelOverlay" hidden></div>
 
-    <aside class="account-panel" id="accountPanel" aria-hidden="true" aria-labelledby="accountTitle">
+    <aside class="account-panel" id="accountPanel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="accountTitle">
       <div class="panel-header">
         <div>
           <p class="eyebrow">Customer Account</p>
           <h2 id="accountTitle">Account</h2>
         </div>
-        <button class="icon-button" id="closePanel" type="button" aria-label="Close account panel">x</button>
+        <button class="icon-button" id="closePanel" type="button" aria-label="Close account panel">
+          <span class="close-icon" aria-hidden="true"></span>
+        </button>
       </div>
 
       <div class="account-panel-body">
-        <section class="account-section" id="signedOutView">
-          <div class="auth-tabs" aria-label="Account forms">
-            <button class="auth-tab is-active" id="showSignIn" type="button" aria-pressed="true">Sign in</button>
-            <button class="auth-tab" id="showSignUp" type="button" aria-pressed="false">Sign up</button>
+        <section class="account-section auth-surface" id="signedOutView">
+          <div class="auth-tabs" id="authTabs" role="tablist" aria-label="Account forms">
+            <button class="auth-tab is-active" id="showSignIn" type="button" role="tab" aria-selected="true" aria-controls="signInForm">
+              <span>Sign in</span>
+              <small>Existing account</small>
+            </button>
+            <button class="auth-tab" id="showSignUp" type="button" role="tab" aria-selected="false" aria-controls="signUpForm" tabindex="-1">
+              <span>Sign up</span>
+              <small>New customer</small>
+            </button>
           </div>
 
-          <form class="account-form" id="signInForm">
+          <form class="account-form" id="signInForm" role="tabpanel" aria-labelledby="showSignIn">
+            <div class="form-header">
+              <p class="form-kicker">Welcome back</p>
+              <h3>Sign in to your account</h3>
+              <p>Manage your customer account and saved basket from one place.</p>
+            </div>
+
             <label for="signInEmail">
-              Email
-              <input id="signInEmail" name="email" type="email" autocomplete="email" required>
+              <span class="field-label">Email address</span>
+              <input id="signInEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
             </label>
 
             <label for="signInPassword">
-              Password
+              <span class="field-label">Password</span>
               <input id="signInPassword" name="password" type="password" autocomplete="current-password" required>
             </label>
 
             <button class="primary-button" type="submit">Sign in</button>
           </form>
 
-          <form class="account-form" id="signUpForm" hidden>
+          <form class="account-form" id="signUpForm" role="tabpanel" aria-labelledby="showSignUp" hidden>
+            <div class="form-header">
+              <p class="form-kicker">New customer</p>
+              <h3>Create your account</h3>
+              <p>Set up secure access and keep your saved basket available across devices.</p>
+            </div>
+
             <label for="signUpEmail">
-              Email
-              <input id="signUpEmail" name="email" type="email" autocomplete="email" required>
+              <span class="field-label">Email address</span>
+              <input id="signUpEmail" name="email" type="email" autocomplete="email" inputmode="email" placeholder="you@example.com" required>
             </label>
 
             <label for="signUpPassword">
-              Password
-              <input id="signUpPassword" name="password" type="password" autocomplete="new-password" minlength="6" required>
+              <span class="field-label">Password</span>
+              <input id="signUpPassword" name="password" type="password" autocomplete="new-password" minlength="6" aria-describedby="signUpPasswordHint" required>
+              <span class="field-hint" id="signUpPasswordHint">Use at least 6 characters.</span>
             </label>
 
             <button class="primary-button" type="submit">Create account</button>
           </form>
 
-          <p class="form-error" id="authError" role="alert"></p>
-          <p class="form-note" id="authMessage" role="status"></p>
+          <div class="auth-feedback">
+            <p class="form-error" id="authError" role="alert"></p>
+            <p class="form-note" id="authMessage" role="status"></p>
+          </div>
         </section>
 
         <section class="account-view" id="signedInView" hidden>
@@ -102,6 +131,27 @@
 
           <button class="plain-button" id="signOutButton" type="button">Sign out</button>
         </section>
+      </div>
+    </aside>
+
+    <aside class="account-panel basket-panel" id="basketPanel" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="basketTitle">
+      <div class="panel-header">
+        <div>
+          <p class="eyebrow">Saved Basket</p>
+          <h2 id="basketTitle">Basket</h2>
+        </div>
+        <button class="icon-button" id="closeBasketPanel" type="button" aria-label="Close basket panel">
+          <span class="close-icon" aria-hidden="true"></span>
+        </button>
+      </div>
+
+      <div class="account-panel-body basket-panel-body">
+        <div class="basket-message" id="basketMessage" role="status"></div>
+        <div class="basketItems" id="basketItems" aria-live="polite"></div>
+        <div class="basket-summary" id="basketSummary" hidden>
+          <span>Total</span>
+          <strong id="basketTotal">£0.00</strong>
+        </div>
       </div>
     </aside>
 
