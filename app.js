@@ -1,8 +1,8 @@
 const PRODUCTS_STORAGE_KEY = "tcg-store-products-v1";
-const ADMIN_SESSION_KEY = "tcg-store-admin-session";
-// Static prototype only. Replace this with server-side auth before launch.
-const ADMIN_PASSWORD = "admin";
 const CURRENCY = "USD";
+
+const SUPABASE_PROJECT_URL = "https://dwkvwzyarrkfhzsqkeof.supabase.co";
+const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_1VUFWbvJj9n7lW6uFP8vMw_cYbyLGWD";
 
 const defaultProducts = [
   {
@@ -15,24 +15,34 @@ const defaultProducts = [
   },
 ];
 
+const isSupabaseConfigured = Boolean(SUPABASE_PROJECT_URL && SUPABASE_PUBLISHABLE_KEY);
+
+const supabaseClient = createSupabaseClient();
+
 const state = {
   products: loadProducts(),
-  draftProducts: [],
-  isAdmin: sessionStorage.getItem(ADMIN_SESSION_KEY) === "true",
+  session: null,
+  user: null,
+  authMode: "sign-in",
+  authReady: false,
 };
 
 const productGrid = document.querySelector("#productGrid");
-const adminToggle = document.querySelector("#adminToggle");
-const adminPanel = document.querySelector("#adminPanel");
+const accountToggle = document.querySelector("#accountToggle");
+const accountPanel = document.querySelector("#accountPanel");
 const panelOverlay = document.querySelector("#panelOverlay");
 const closePanel = document.querySelector("#closePanel");
-const loginForm = document.querySelector("#loginForm");
-const loginError = document.querySelector("#loginError");
-const editorForm = document.querySelector("#editorForm");
-const editorList = document.querySelector("#editorList");
-const addProductButton = document.querySelector("#addProduct");
-const resetProductsButton = document.querySelector("#resetProducts");
-const logoutButton = document.querySelector("#logoutAdmin");
+const signedOutView = document.querySelector("#signedOutView");
+const signedInView = document.querySelector("#signedInView");
+const showSignInButton = document.querySelector("#showSignIn");
+const showSignUpButton = document.querySelector("#showSignUp");
+const signInForm = document.querySelector("#signInForm");
+const signUpForm = document.querySelector("#signUpForm");
+const signOutButton = document.querySelector("#signOutButton");
+const authError = document.querySelector("#authError");
+const authMessage = document.querySelector("#authMessage");
+const accountEmail = document.querySelector("#accountEmail");
+const accountEmailDetail = document.querySelector("#accountEmailDetail");
 const toast = document.querySelector("#toast");
 
 const priceFormatter = new Intl.NumberFormat("en-US", {
@@ -43,81 +53,150 @@ const priceFormatter = new Intl.NumberFormat("en-US", {
 let toastTimeout;
 
 renderStore();
-renderAdmin();
+renderAccount();
+initializeAuth();
 
-adminToggle.addEventListener("click", openPanel);
-closePanel.addEventListener("click", closeAdminPanel);
-panelOverlay.addEventListener("click", closeAdminPanel);
-
-loginForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const password = new FormData(loginForm).get("adminPassword");
-
-  if (password !== ADMIN_PASSWORD) {
-    loginError.textContent = "Incorrect password.";
-    return;
-  }
-
-  sessionStorage.setItem(ADMIN_SESSION_KEY, "true");
-  state.isAdmin = true;
-  loginForm.reset();
-  loginError.textContent = "";
-  resetDraftProducts();
-  renderAdmin();
-  showToast("Signed in.");
-});
-
-editorForm.addEventListener("submit", (event) => {
-  event.preventDefault();
-  const nextProducts = readDraftProductsFromForm();
-
-  if (!nextProducts.length) {
-    showToast("Add at least one item.");
-    return;
-  }
-
-  state.products = nextProducts;
-  saveProducts(state.products);
-  resetDraftProducts();
-  renderStore();
-  renderAdmin();
-  showToast("Changes saved.");
-});
-
-addProductButton.addEventListener("click", () => {
-  syncDraftProductsFromForm();
-  state.draftProducts.push({
-    id: createProductId(),
-    name: `Product ${state.draftProducts.length + 1}`,
-    description: "A placeholder trading card game product.",
-    price: 0,
-    stock: 0,
-    image: "assets/product-placeholder.png",
-  });
-  renderAdmin();
-});
-
-resetProductsButton.addEventListener("click", () => {
-  state.products = cloneProducts(defaultProducts);
-  saveProducts(state.products);
-  resetDraftProducts();
-  renderStore();
-  renderAdmin();
-  showToast("Products reset.");
-});
-
-logoutButton.addEventListener("click", () => {
-  sessionStorage.removeItem(ADMIN_SESSION_KEY);
-  state.isAdmin = false;
-  renderAdmin();
-  showToast("Signed out.");
-});
+accountToggle.addEventListener("click", openPanel);
+closePanel.addEventListener("click", closeAccountPanel);
+panelOverlay.addEventListener("click", closeAccountPanel);
+showSignInButton.addEventListener("click", () => setAuthMode("sign-in"));
+showSignUpButton.addEventListener("click", () => setAuthMode("sign-up"));
+signInForm.addEventListener("submit", handleSignIn);
+signUpForm.addEventListener("submit", handleSignUp);
+signOutButton.addEventListener("click", handleSignOut);
 
 document.addEventListener("keydown", (event) => {
-  if (event.key === "Escape" && adminPanel.classList.contains("is-open")) {
-    closeAdminPanel();
+  if (event.key === "Escape" && accountPanel.classList.contains("is-open")) {
+    closeAccountPanel();
   }
 });
+
+function createSupabaseClient() {
+  if (!isSupabaseConfigured || !window.supabase) {
+    return null;
+  }
+
+  return window.supabase.createClient(SUPABASE_PROJECT_URL, SUPABASE_PUBLISHABLE_KEY, {
+    auth: {
+      autoRefreshToken: true,
+      persistSession: true,
+      detectSessionInUrl: true,
+    },
+  });
+}
+
+async function initializeAuth() {
+  if (!supabaseClient) {
+    state.authReady = true;
+    renderAccount();
+    return;
+  }
+
+  const { data, error } = await supabaseClient.auth.getSession();
+
+  if (error) {
+    setAuthError(error.message);
+  }
+
+  setSession(data?.session ?? null);
+  state.authReady = true;
+  renderAccount();
+
+  supabaseClient.auth.onAuthStateChange((event, session) => {
+    setSession(session);
+
+    if (event === "SIGNED_IN") {
+      showToast("Signed in.");
+    }
+
+    if (event === "SIGNED_OUT") {
+      showToast("Signed out.");
+    }
+
+    renderAccount();
+  });
+}
+
+async function handleSignIn(event) {
+  event.preventDefault();
+  clearAuthMessages();
+
+  if (!requireSupabaseConfig()) {
+    return;
+  }
+
+  const formData = new FormData(signInForm);
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  setAuthBusy(true);
+
+  const { error } = await supabaseClient.auth.signInWithPassword({
+    email,
+    password,
+  });
+
+  setAuthBusy(false);
+
+  if (error) {
+    setAuthError(error.message);
+    return;
+  }
+
+  signInForm.reset();
+}
+
+async function handleSignUp(event) {
+  event.preventDefault();
+  clearAuthMessages();
+
+  if (!requireSupabaseConfig()) {
+    return;
+  }
+
+  const formData = new FormData(signUpForm);
+  const email = String(formData.get("email") || "").trim();
+  const password = String(formData.get("password") || "");
+
+  setAuthBusy(true);
+
+  const { error } = await supabaseClient.auth.signUp({
+    email,
+    password,
+  });
+
+  setAuthBusy(false);
+
+  if (error) {
+    setAuthError(error.message);
+    return;
+  }
+
+  signUpForm.reset();
+  setAuthMessage("Account created. Check your email if confirmation is enabled.");
+}
+
+async function handleSignOut() {
+  clearAuthMessages();
+
+  if (!requireSupabaseConfig()) {
+    return;
+  }
+
+  setAuthBusy(true);
+
+  const { error } = await supabaseClient.auth.signOut({ scope: "local" });
+
+  setAuthBusy(false);
+
+  if (error) {
+    setAuthError(error.message);
+    return;
+  }
+
+  setSession(null);
+  renderAccount();
+}
 
 function renderStore() {
   productGrid.replaceChildren();
@@ -162,9 +241,8 @@ function renderStore() {
     const buyButton = document.createElement("button");
     buyButton.className = "buy-button";
     buyButton.type = "button";
-    buyButton.disabled = product.stock <= 0;
-    buyButton.textContent = product.stock > 0 ? "Buy now" : "Unavailable";
-    buyButton.addEventListener("click", () => recordPurchase(product.id));
+    buyButton.disabled = true;
+    buyButton.textContent = "Unavailable";
 
     content.append(title, description, meta, buyButton);
     card.append(imageWrap, content);
@@ -172,143 +250,95 @@ function renderStore() {
   });
 }
 
-function renderAdmin() {
-  loginForm.hidden = state.isAdmin;
-  editorForm.hidden = !state.isAdmin;
+function renderAccount() {
+  const signedIn = Boolean(state.user);
 
-  if (!state.isAdmin) {
-    return;
+  signedOutView.hidden = signedIn;
+  signedInView.hidden = !signedIn;
+  setAuthMode(state.authMode, false);
+
+  if (!supabaseClient) {
+    setAuthMessage("Paste your Supabase Project URL and Publishable Key in app.js to enable accounts.");
   }
 
-  if (!state.draftProducts.length) {
-    resetDraftProducts();
+  if (signedIn) {
+    accountEmail.textContent = state.user.email || "Account";
+    accountEmailDetail.textContent = state.user.email || "Signed in";
+  } else {
+    accountEmail.textContent = "Account";
+    accountEmailDetail.textContent = "";
   }
+}
 
-  editorList.replaceChildren();
+function setAuthMode(mode, shouldClearMessages = true) {
+  state.authMode = mode;
 
-  state.draftProducts.forEach((product, index) => {
-    const row = document.createElement("section");
-    row.className = "editor-product";
-    row.dataset.productId = product.id;
+  const isSignIn = mode === "sign-in";
 
-    const rowTitle = document.createElement("div");
-    rowTitle.className = "editor-product-title";
+  signInForm.hidden = !isSignIn;
+  signUpForm.hidden = isSignIn;
+  showSignInButton.classList.toggle("is-active", isSignIn);
+  showSignUpButton.classList.toggle("is-active", !isSignIn);
+  showSignInButton.setAttribute("aria-pressed", String(isSignIn));
+  showSignUpButton.setAttribute("aria-pressed", String(!isSignIn));
 
-    const title = document.createElement("strong");
-    title.textContent = product.name || `Product ${index + 1}`;
+  if (shouldClearMessages) {
+    clearAuthMessages();
+  }
+}
 
-    const removeButton = document.createElement("button");
-    removeButton.className = "remove-button";
-    removeButton.type = "button";
-    removeButton.textContent = "Remove";
-    removeButton.disabled = state.draftProducts.length === 1;
-    removeButton.addEventListener("click", () => {
-      syncDraftProductsFromForm();
-      state.draftProducts = state.draftProducts.filter((item) => item.id !== product.id);
-      renderAdmin();
-    });
+function setSession(session) {
+  state.session = session;
+  state.user = session?.user ?? null;
+}
 
-    rowTitle.append(title, removeButton);
-
-    const nameField = createField("Name", "text", "name", product.name, true);
-    const descriptionField = createField("Description", "text", "description", product.description, true);
-    const imageField = createField("Image URL", "text", "image", product.image, true);
-
-    const fieldRow = document.createElement("div");
-    fieldRow.className = "field-row";
-    fieldRow.append(
-      createField("Price", "number", "price", product.price, true, "0", "0.01"),
-      createField("Stock", "number", "stock", product.stock, true, "0", "1"),
-    );
-
-    row.append(rowTitle, nameField, descriptionField, imageField, fieldRow);
-    editorList.append(row);
+function setAuthBusy(isBusy) {
+  signInForm.querySelectorAll("input, button").forEach((control) => {
+    control.disabled = isBusy;
   });
-}
 
-function createField(labelText, type, name, value, required, min, step) {
-  const label = document.createElement("label");
-  label.textContent = labelText;
-
-  const input = document.createElement("input");
-  input.name = name;
-  input.type = type;
-  input.value = value ?? "";
-  input.required = required;
-
-  if (min !== undefined) {
-    input.min = min;
-  }
-
-  if (step !== undefined) {
-    input.step = step;
-  }
-
-  label.append(input);
-  return label;
-}
-
-function readDraftProductsFromForm() {
-  return Array.from(editorList.querySelectorAll(".editor-product")).map((row, index) => {
-    const getValue = (name) => row.querySelector(`[name="${name}"]`).value.trim();
-    const price = Number.parseFloat(getValue("price"));
-    const stock = Number.parseInt(getValue("stock"), 10);
-
-    return normalizeProduct({
-      id: row.dataset.productId || createProductId(),
-      name: getValue("name") || `Product ${index + 1}`,
-      description: getValue("description") || "Trading card game product.",
-      image: getValue("image") || "assets/product-placeholder.png",
-      price: Number.isFinite(price) ? price : 0,
-      stock: Number.isFinite(stock) ? stock : 0,
-    }, index);
+  signUpForm.querySelectorAll("input, button").forEach((control) => {
+    control.disabled = isBusy;
   });
+
+  signOutButton.disabled = isBusy;
 }
 
-function syncDraftProductsFromForm() {
-  const rows = editorList.querySelectorAll(".editor-product");
-
-  if (rows.length) {
-    state.draftProducts = readDraftProductsFromForm();
+function requireSupabaseConfig() {
+  if (supabaseClient) {
+    return true;
   }
+
+  setAuthMessage("Paste your Supabase Project URL and Publishable Key in app.js to enable accounts.");
+  return false;
 }
 
-function recordPurchase(productId) {
-  const product = state.products.find((item) => item.id === productId);
+function setAuthError(message) {
+  authError.textContent = message;
+  authMessage.textContent = "";
+}
 
-  if (!product || product.stock <= 0) {
-    showToast("This item is out of stock.");
-    return;
-  }
+function setAuthMessage(message) {
+  authMessage.textContent = message;
+  authError.textContent = "";
+}
 
-  product.stock -= 1;
-  saveProducts(state.products);
-  resetDraftProducts();
-  renderStore();
-
-  if (state.isAdmin) {
-    renderAdmin();
-  }
-
-  showToast(`Purchase recorded for ${product.name}.`);
+function clearAuthMessages() {
+  authError.textContent = "";
+  authMessage.textContent = "";
 }
 
 function openPanel() {
-  adminPanel.classList.add("is-open");
-  adminPanel.setAttribute("aria-hidden", "false");
-  adminToggle.setAttribute("aria-expanded", "true");
+  accountPanel.classList.add("is-open");
+  accountPanel.setAttribute("aria-hidden", "false");
+  accountToggle.setAttribute("aria-expanded", "true");
   panelOverlay.hidden = false;
-
-  if (state.isAdmin) {
-    resetDraftProducts();
-    renderAdmin();
-  }
 }
 
-function closeAdminPanel() {
-  adminPanel.classList.remove("is-open");
-  adminPanel.setAttribute("aria-hidden", "true");
-  adminToggle.setAttribute("aria-expanded", "false");
+function closeAccountPanel() {
+  accountPanel.classList.remove("is-open");
+  accountPanel.setAttribute("aria-hidden", "true");
+  accountToggle.setAttribute("aria-expanded", "false");
   panelOverlay.hidden = true;
 }
 
@@ -332,10 +362,6 @@ function loadProducts() {
   }
 }
 
-function saveProducts(products) {
-  localStorage.setItem(PRODUCTS_STORAGE_KEY, JSON.stringify(products.map(normalizeProduct)));
-}
-
 function normalizeProduct(product, index = 0) {
   const price = Number(product.price);
   const stock = Number(product.stock);
@@ -348,10 +374,6 @@ function normalizeProduct(product, index = 0) {
     stock: Number.isFinite(stock) && stock >= 0 ? Math.floor(stock) : 0,
     image: String(product.image || "assets/product-placeholder.png").trim(),
   };
-}
-
-function resetDraftProducts() {
-  state.draftProducts = cloneProducts(state.products);
 }
 
 function cloneProducts(products) {

@@ -13,8 +13,8 @@
           <span class="brand-mark" aria-hidden="true">TCG</span>
           <span class="brand-name">TCG Store</span>
         </a>
-        <button class="admin-toggle" id="adminToggle" type="button" aria-controls="adminPanel" aria-expanded="false">
-          Admin
+        <button class="account-toggle" id="accountToggle" type="button" aria-controls="accountPanel" aria-expanded="false">
+          Account
         </button>
       </header>
 
@@ -33,36 +33,81 @@
 
     <div class="panel-overlay" id="panelOverlay" hidden></div>
 
-    <aside class="admin-panel" id="adminPanel" aria-hidden="true" aria-labelledby="adminTitle">
+    <aside class="account-panel" id="accountPanel" aria-hidden="true" aria-labelledby="accountTitle">
       <div class="panel-header">
         <div>
-          <p class="eyebrow">Store Admin</p>
-          <h2 id="adminTitle">Manage Products</h2>
+          <p class="eyebrow">Customer Account</p>
+          <h2 id="accountTitle">Account</h2>
         </div>
-        <button class="icon-button" id="closePanel" type="button" aria-label="Close admin panel">x</button>
+        <button class="icon-button" id="closePanel" type="button" aria-label="Close account panel">x</button>
       </div>
 
-      <form class="login-form" id="loginForm">
-        <label for="adminPassword">Password</label>
-        <input id="adminPassword" name="adminPassword" type="password" autocomplete="current-password" required>
-        <p class="form-error" id="loginError" role="alert"></p>
-        <button class="primary-button" type="submit">Sign in</button>
-      </form>
+      <div class="account-panel-body">
+        <section class="account-section" id="signedOutView">
+          <div class="auth-tabs" aria-label="Account forms">
+            <button class="auth-tab is-active" id="showSignIn" type="button" aria-pressed="true">Sign in</button>
+            <button class="auth-tab" id="showSignUp" type="button" aria-pressed="false">Sign up</button>
+          </div>
 
-      <form class="editor-form" id="editorForm" hidden>
-        <div class="editor-list" id="editorList"></div>
+          <form class="account-form" id="signInForm">
+            <label for="signInEmail">
+              Email
+              <input id="signInEmail" name="email" type="email" autocomplete="email" required>
+            </label>
 
-        <div class="editor-actions">
-          <button class="secondary-button" id="addProduct" type="button">+ Add item</button>
-          <button class="primary-button" type="submit">Save changes</button>
-          <button class="plain-button" id="resetProducts" type="button">Reset</button>
-          <button class="plain-button" id="logoutAdmin" type="button">Sign out</button>
-        </div>
-      </form>
+            <label for="signInPassword">
+              Password
+              <input id="signInPassword" name="password" type="password" autocomplete="current-password" required>
+            </label>
+
+            <button class="primary-button" type="submit">Sign in</button>
+          </form>
+
+          <form class="account-form" id="signUpForm" hidden>
+            <label for="signUpEmail">
+              Email
+              <input id="signUpEmail" name="email" type="email" autocomplete="email" required>
+            </label>
+
+            <label for="signUpPassword">
+              Password
+              <input id="signUpPassword" name="password" type="password" autocomplete="new-password" minlength="6" required>
+            </label>
+
+            <button class="primary-button" type="submit">Create account</button>
+          </form>
+
+          <p class="form-error" id="authError" role="alert"></p>
+          <p class="form-note" id="authMessage" role="status"></p>
+        </section>
+
+        <section class="account-view" id="signedInView" hidden>
+          <p class="eyebrow">Signed In</p>
+          <h3 id="accountEmail">Account</h3>
+
+          <div class="account-detail-list">
+            <div class="account-detail">
+              <span>Email</span>
+              <strong id="accountEmailDetail"></strong>
+            </div>
+            <div class="account-detail">
+              <span>Orders</span>
+              <strong>Not connected yet</strong>
+            </div>
+            <div class="account-detail">
+              <span>Addresses</span>
+              <strong>Not connected yet</strong>
+            </div>
+          </div>
+
+          <button class="plain-button" id="signOutButton" type="button">Sign out</button>
+        </section>
+      </div>
     </aside>
 
     <div class="toast" id="toast" role="status" aria-live="polite" aria-atomic="true"></div>
 
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
     <script src="app.js"></script>
   </body>
 </html>

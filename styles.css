@@ -88,7 +88,7 @@ button:disabled {
   white-space: nowrap;
 }
 
-.admin-toggle,
+.account-toggle,
 .primary-button,
 .secondary-button,
 .plain-button,
@@ -102,7 +102,7 @@ button:disabled {
   font-weight: 700;
 }
 
-.admin-toggle,
+.account-toggle,
 .secondary-button {
   border-color: var(--line);
   background: rgba(255, 255, 255, 0.78);
@@ -275,7 +275,7 @@ h3 {
   background: rgba(28, 29, 31, 0.34);
 }
 
-.admin-panel {
+.account-panel {
   position: fixed;
   top: 0;
   right: 0;
@@ -292,7 +292,7 @@ h3 {
   transition: transform 180ms ease;
 }
 
-.admin-panel.is-open {
+.account-panel.is-open {
   transform: translateX(0);
 }
 
@@ -305,12 +305,43 @@ h3 {
   border-bottom: 1px solid var(--line);
 }
 
-.login-form,
-.editor-form {
+.account-panel-body,
+.account-form,
+.account-view {
   display: grid;
   align-content: start;
   gap: 18px;
+}
+
+.account-panel-body {
   padding: 24px;
+}
+
+.account-section,
+.account-view {
+  display: grid;
+  gap: 18px;
+}
+
+.auth-tabs {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.auth-tab {
+  min-height: 44px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--muted);
+  font-weight: 800;
+}
+
+.auth-tab.is-active {
+  border-color: var(--accent);
+  background: #e5f2ef;
+  color: var(--accent-dark);
 }
 
 label {
@@ -345,28 +376,37 @@ input:focus {
   font-weight: 700;
 }
 
-.editor-list {
-  display: grid;
-  gap: 18px;
+.form-note {
+  min-height: 22px;
+  margin: 0;
+  color: var(--muted);
+  font-size: 0.9rem;
+  font-weight: 700;
 }
 
-.editor-product {
+.account-detail-list {
   display: grid;
-  gap: 14px;
-  border: 1px solid var(--line);
-  border-radius: var(--radius);
-  padding: 16px;
-  background: var(--surface);
+  gap: 10px;
 }
 
-.editor-product-title {
+.account-detail {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 14px;
+  background: var(--surface);
 }
 
-.editor-product-title strong {
+.account-detail span {
+  color: var(--muted);
+  font-size: 0.86rem;
+  font-weight: 800;
+}
+
+.account-detail strong {
   overflow-wrap: anywhere;
 }
 
@@ -382,14 +422,6 @@ input:focus {
   border-color: #e6c8c2;
   background: #fff6f4;
   color: var(--danger);
-}
-
-.editor-actions {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 10px;
-  align-items: center;
-  padding-bottom: 24px;
 }
 
 .toast {
@@ -459,7 +491,7 @@ input:focus {
     font-size: 1rem;
   }
 
-  .admin-toggle,
+  .account-toggle,
   .primary-button,
   .secondary-button,
   .plain-button,
@@ -467,7 +499,7 @@ input:focus {
     width: 100%;
   }
 
-  .admin-toggle {
+  .account-toggle {
     width: auto;
   }
 
